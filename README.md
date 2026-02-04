@@ -1,4 +1,4 @@
-# ComfyUI NanoBanana Pro 图像生成节点
+# 针对[Apiyi](https://api.apiyi.com/)而开发的 ComfyUI NanoBanana Pro 图像生成节点
 
 这是一个用于 ComfyUI 的自定义节点，集成了 NanoBanana Pro (Gemini 3 Pro Image) API，支持文本生图和图生图功能。
 
@@ -99,3 +99,4 @@ pip install -r requirements.txt
 ## 许可证
 
 MIT License
+
