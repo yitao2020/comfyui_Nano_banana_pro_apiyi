@@ -1,102 +1,145 @@
-# 针对[Apiyi](https://api.apiyi.com/)而开发的 ComfyUI NanoBanana Pro 图像生成节点
+# ComfyUI NanoBanana Pro Image Generator
 
-这是一个用于 ComfyUI 的自定义节点，集成了 NanoBanana Pro (Gemini 3 Pro Image) API，支持文本生图和图生图功能。
+针对 [Apiyi](https://api.apiyi.com/) 代理端点开发的 ComfyUI 自定义节点，通过 Gemini 3 系列图像模型实现文本生图和图生图功能。
+
+基于 Google Gemini 3 Pro Image / Gemini 3.1 Flash Image 模型，通过 apiyi.com 代理 API 调用。
 
 ## 功能特点
 
-- ✅ 支持文本提示词生成图像
-- ✅ 支持输入参考图像（可选）
-- ✅ 自定义宽高比（10种比例可选）
-- ✅ 自定义分辨率（1K/2K/4K）
-- ✅ API密钥自动保存
-- ✅ 详细的日志输出
-- ✅ 智能超时控制
+- 文本生图（text-to-image）
+- 图生图（image-to-image）— 支持单张或多张参考图像
+- 多图像输入自动权重分配（基础图 / 主参考 / 次参考 / 辅助参考）
+- 模型切换：Gemini 3.1 Flash（快速） / Gemini 3 Pro（高质）
+- AI 思维推理（thinking）：none / minimal / high
+- 14 种宽高比预设 + auto 自动匹配
+- 3 档分辨率：1K / 2K / 4K
+- API 密钥自动持久化（本地 `api_key.txt`，已加入 .gitignore）
+- 实时进度条（基于 ComfyUI ProgressBar）
+- Seed 控制：seed=0 每次随机生成，固定 seed 可复现
+- 详细的日志输出和推理过程展示
 
 ## 安装
 
-1. 将此文件夹放置在 ComfyUI 的 `custom_nodes` 目录下
-2. 安装依赖：
 ```bash
+cd ComfyUI/custom_nodes/
+git clone https://github.com/yitao2020/comfyui_Nano_banana_pro_apiyi.git
+cd comfyui_Nano_banana_pro_apiyi
 pip install -r requirements.txt
 ```
-3. 重启 ComfyUI
+
+重启 ComfyUI，在节点列表的 **NanoBanana Pro** 分类下找到 `NanoBanana Pro Image Generator`。
 
 ## 使用方法
 
-### 基本使用
-
-1. 在 ComfyUI 中找到 `NanoBanana Pro` 分类
-2. 添加 `NanoBanana Pro Image Generator` 节点
-3. 输入你的 API Key（格式：`sk-your-api-key`）
-4. 输入提示词
-5. 选择宽高比和分辨率
-6. 运行工作流
+1. 添加节点到工作流
+2. 在 `api_key` 字段填入你的 apiyi.com API 密钥（格式 `sk-...`），密钥会自动保存到本地
+3. 输入提示词（支持中文 / 英文）
+4. 选择模型、宽高比、分辨率、思维级别
+5. （可选）连接参考图像
+6. 运行
 
 ### 参数说明
 
-**必需参数：**
-- `api_key`: 你的 NanoBanana Pro API 密钥
-- `prompt`: 图像描述提示词（支持中文和英文）
-- `aspect_ratio`: 图像宽高比
-  - 1:1（方形）
-  - 16:9（横屏）
-  - 9:16（竖屏）
-  - 4:3, 3:4, 3:2, 2:3, 21:9, 5:4, 4:5
-- `resolution`: 图像分辨率
-  - 1K（快速生成，约180秒超时）
-  - 2K（推荐，约300秒超时）
-  - 4K（高清，约360秒超时）
-
-**可选参数：**
-- `image`: 参考图像输入（可选）
+| 参数 | 说明 |
+|------|------|
+| `api_key` | apiyi.com 的 API 密钥，`sk-` 格式 |
+| `prompt` | 图像描述提示词 |
+| `model` | `gemini-3.1-flash-image-preview`（快速便宜）/ `gemini-3-pro-image-preview`（高质量） |
+| `aspect_ratio` | 宽高比：auto / 1:1 / 16:9 / 9:16 / 4:3 / 3:4 / 3:2 / 2:3 / 21:9 / 5:4 / 4:5 / 4:1 / 1:4 / 8:1 / 1:8 |
+| `resolution` | 1K / 2K / 4K |
+| `thinking_level` | `none`（无推理）/ `minimal`（快速推理）/ `high`（深度推理，适合复杂构图和精确文字） |
+| `include_thoughts` | 是否在输出中展示 AI 的推理过程 |
+| `seed` | 随机种子，设为 0 则每次生成不同结果 |
+| `image`（可选） | 参考图像输入，支持 batch 多张 |
 
 ### 输出
 
-- `image`: 生成的图像（IMAGE类型）
-- `info`: 生成信息和日志（STRING类型）
+- `image` — 生成的图像（IMAGE 类型）
+- `info` — 生成日志和可选的 AI 推理过程（STRING 类型）
 
-## API 密钥
+### 多图像权重说明
 
-首次使用时需要输入 API 密钥，密钥会自动保存到节点目录的 `api_key.txt` 文件中，下次使用时无需重复输入。
+通过 Batch Images 节点输入多张图像时，自动按顺序分配角色：
 
-如需更换密钥，直接在节点中输入新的密钥即可自动覆盖。
+| 顺序 | 角色 | 权重 |
+|------|------|------|
+| 第 1 张 | 基础图（要修改的目标图） | — |
+| 第 2 张 | 主要风格参考 | 最高 |
+| 第 3 张 | 次要参考 | 中等 |
+| 第 4+ 张 | 辅助参考 | 最低 |
 
-## 注意事项
+建议 2-3 张图像，太多可能导致效果混乱。详见 [MULTI_IMAGE_GUIDE.md](MULTI_IMAGE_GUIDE.md)。
 
-1. 生成时间取决于所选分辨率：
-   - 1K: 约10-30秒
-   - 2K: 约20-60秒
-   - 4K: 约30-90秒
+### 预计生成时间
 
-2. 如果遇到超时错误，建议：
-   - 使用更低的分辨率
-   - 简化提示词
-   - 检查网络连接
+| 分辨率 | 预计时间 | 超时上限 |
+|--------|----------|----------|
+| 1K | 10-30 秒 | 180 秒 |
+| 2K | 20-60 秒 | 300 秒 |
+| 4K | 30-90 秒 | 360 秒 |
 
-3. API 调用需要有效的网络连接和 API 配额
+## API 密钥获取
+
+前往 [apiyi.com](https://api.apiyi.com/) 注册并获取 API 密钥（`sk-` 格式）。
+
+密钥保存在节点目录的 `api_key.txt` 中（已在 `.gitignore` 中排除，不会被提交）。
+
+## 项目结构
+
+```
+comfyui_Nano_banana_pro_apiyi/
+├── __init__.py                  # ComfyUI 节点注册入口
+├── nanobanana_pro_node.py       # 核心节点逻辑
+├── requirements.txt             # Python 依赖
+├── .gitignore                   # 排除 api_key.txt 等
+├── README.md                    # 本文件
+├── MULTI_IMAGE_GUIDE.md         # 多图像输入详细指南
+└── USAGE_EXAMPLE.md             # 使用示例和提示词技巧
+```
+
+## 迭代日志
+
+### v2.0.0 — 当前版本
+
+**新增功能：**
+- 模型选择：支持 Gemini 3.1 Flash Image Preview 和 Gemini 3 Pro Image Preview 切换
+- AI 思维推理（thinking）：none / minimal / high 三档，适用于复杂构图、精确文字渲染、多元素场景
+- 推理过程输出：可选择在 info 输出中展示 AI 的完整思考链
+- 实时进度条：使用 ComfyUI ProgressBar + 后台线程，生成过程中有实时进度反馈
+- API URL 模板化：支持通过 `{model}` 占位符动态切换模型端点
+
+**改进：**
+- 宽高比扩展：新增 4:1 / 1:4 / 8:1 / 1:8 四种极端比例（全景图、长图等场景）
+- Auto 宽高比匹配范围扩大：新增四种比例的标准值匹配
+- 代码清理：移除了 `estimated_time` 冗余显示参数（信息已内置于进度条和日志）
+
+**安全：**
+- 添加 `.gitignore`，排除 `api_key.txt` 和其他敏感/缓存文件
+- 确保 API 密钥不会出现在代码或版本控制历史中
+
+### v1.1.0
+
+- 多张图像输入支持
+- 自动权重优先级（基础图 / 主参考 / 次参考 / 辅助参考）
+- 详细的图像处理日志
+
+### v1.0.0
+
+- 初始版本
+- 文本生图 + 图生图
+- 10 种宽高比 + 3 档分辨率
+- API 密钥自动保存
 
 ## 故障排除
 
-**问题：节点无法加载**
-- 确保已安装所有依赖包
-- 检查 Python 版本（建议 3.10+）
-- 重启 ComfyUI
-
-**问题：API 请求失败**
-- 检查 API 密钥是否正确
-- 确认网络连接正常
-- 查看节点输出的详细错误信息
-
-**问题：生成的图像是空白的**
-- 检查 API 响应日志
-- 确认 API 配额是否充足
-- 尝试简化提示词
-
-## 技术支持
-
-如有问题或建议，请查看节点输出的详细日志信息。
+| 问题 | 解决方案 |
+|------|----------|
+| 节点无法加载 | 安装依赖 `pip install -r requirements.txt`，重启 ComfyUI |
+| API 请求失败 | 检查密钥格式（`sk-...`）、网络连接、apiyi.com 账户余额 |
+| 生成空白图像 | 查看日志输出，确认 API 配额充足，尝试简化提示词 |
+| 请求超时 | 降低分辨率（1K 或 2K），简化提示词，检查网络 |
+| 模型切换后报错 | 确认 apiyi.com 代理端点支持目标模型 |
 
 ## 许可证
 
 MIT License
-
