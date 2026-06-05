@@ -17,6 +17,7 @@
 - 实时进度条（基于 ComfyUI ProgressBar）
 - Seed 控制：seed=0 每次随机生成，固定 seed 可复现
 - 详细的日志输出和推理过程展示
+- 并发多图生成（`num_images` 参数，1-4 张并发生成）
 
 ## 安装
 
@@ -50,11 +51,12 @@ pip install -r requirements.txt
 | `thinking_level` | `none`（无推理）/ `minimal`（快速推理）/ `high`（深度推理，适合复杂构图和精确文字） |
 | `include_thoughts` | 是否在输出中展示 AI 的推理过程 |
 | `seed` | 随机种子，设为 0 则每次生成不同结果 |
+| `num_images` | 并发生成数量（1-4），一次性生成多张图像，输出为 batch |
 | `image`（可选） | 参考图像输入，支持 batch 多张 |
 
 ### 输出
 
-- `image` — 生成的图像（IMAGE 类型）
+- `image` — 生成的图像（IMAGE 类型）。当 `num_images > 1` 时输出为 batch，包含多张图像
 - `info` — 生成日志和可选的 AI 推理过程（STRING 类型）
 
 ### 多图像权重说明
