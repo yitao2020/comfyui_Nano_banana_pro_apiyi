@@ -1,5 +1,17 @@
 # ComfyUI NanoBanana Pro Image Generator
 
+## 内置“立即生成”与跨批次并发
+
+无需安装额外并发插件。点击节点内 **▶ 立即生成**，上一批运行时仍可继续提交；
+每次自动新建独立的保存图像结果节点，图片返回后自动展示和保存，画布不自动跳转。
+生成节点不显示详细日志，页面没有并发悬浮按钮。**全部记录**可查看任务详情。
+两个图像插件单独安装或同时安装都支持。原生“运行”和单次多图并发保持原有行为。
+
+**曾安装 ComfyUI-API-Immediate 的用户：请将旧独立插件移出 custom_nodes，再重启并 Ctrl+F5 刷新。**
+
+完整说明、支持的上游节点和测试方式见 [内置并发使用说明](IMMEDIATE_GENERATION.md)。
+
+
 针对 [Apiyi](https://api.apiyi.com/) 代理端点开发的 ComfyUI 自定义节点，通过 Gemini 3 系列图像模型实现文本生图和图生图功能。
 
 基于 Google Gemini 3 Pro Image / Gemini 3.1 Flash Image 模型，通过 apiyi.com 代理 API 调用。
@@ -17,7 +29,7 @@
 - 实时进度条（基于 ComfyUI ProgressBar）
 - Seed 控制：seed=0 每次随机生成，固定 seed 可复现
 - 详细的日志输出和推理过程展示
-- 并发多图生成（`num_images` 参数，1-4 张并发生成）
+- 并发多图生成（`image_count` 参数，1-9 张并发生成）
 
 ## 安装
 
@@ -51,12 +63,12 @@ pip install -r requirements.txt
 | `thinking_level` | `none`（无推理）/ `minimal`（快速推理）/ `high`（深度推理，适合复杂构图和精确文字） |
 | `include_thoughts` | 是否在输出中展示 AI 的推理过程 |
 | `seed` | 随机种子，设为 0 则每次生成不同结果 |
-| `num_images` | 并发生成数量（1-4），一次性生成多张图像，输出为 batch |
+| `image_count` | 并发生成数量（1-9），一次性生成多张图像，输出为 batch |
 | `image`（可选） | 参考图像输入，支持 batch 多张 |
 
 ### 输出
 
-- `image` — 生成的图像（IMAGE 类型）。当 `num_images > 1` 时输出为 batch，包含多张图像
+- `image` — 生成的图像（IMAGE 类型）。当 `image_count > 1` 时输出为 batch，包含多张图像
 - `info` — 生成日志和可选的 AI 推理过程（STRING 类型）
 
 ### 多图像权重说明

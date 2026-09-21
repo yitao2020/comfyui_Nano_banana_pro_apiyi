@@ -25,3 +25,8 @@ Thumbs.db
 
 # 日志
 *.log
+
+# Local workspace artifacts (never published)
+.workbuddy/
+*_backup_*.py
+.pytest_cache/
