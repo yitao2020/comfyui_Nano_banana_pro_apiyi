@@ -7,10 +7,6 @@
 生成节点不显示详细日志，页面没有并发悬浮按钮。**全部记录**可查看任务详情。
 两个图像插件单独安装或同时安装都支持。原生“运行”和单次多图并发保持原有行为。
 
-**曾安装 ComfyUI-API-Immediate 的用户：请将旧独立插件移出 custom_nodes，再重启并 Ctrl+F5 刷新。**
-
-完整说明、支持的上游节点和测试方式见 [内置并发使用说明](IMMEDIATE_GENERATION.md)。
-
 
 针对 [Apiyi](https://api.apiyi.com/) 代理端点开发的 ComfyUI 自定义节点，通过 Gemini 3 系列图像模型实现文本生图和图生图功能。
 
