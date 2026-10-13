@@ -1,4 +1,5 @@
 # ComfyUI NanoBanana Pro Image Generator
+<img width="1009" height="1109" alt="nano banana_comfyui" src="https://github.com/user-attachments/assets/dedb1f69-525b-4e2a-9d37-b2c8f915b00b" />
 
 ## Nano Banana 2.1
 
