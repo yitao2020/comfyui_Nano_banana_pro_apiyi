@@ -1,5 +1,16 @@
 # ComfyUI NanoBanana Pro Image Generator
 
+## Nano Banana 2.1
+
+在原有 `model_version` 下拉中选择 `gemini-nano-banana-2.1` 即可使用，API Key、节点结构和旧模型默认值不变。
+参数依据 [API易 2.1 文档](https://docs.apiyi.com/api-capabilities/gemini-nano-banana-2.1/overview)：
+
+- 分辨率仍为 `1K / 2K / 4K`，沿用插件默认 `2K`；2.1 请求超时为 360 秒。
+- 思考档位支持 `minimal / medium / high`。为保留旧下拉选项，`disabled` 不发送配置，使用服务端默认 `medium`（不代表关闭思考）；`low` 映射为 `minimal`。
+- 比例下拉新增 `1:4 / 4:1 / 1:8 / 8:1`，仅用于 2.1。`auto` 根据参考图匹配，无参考图时为 `1:1`。
+- 编辑沿用参考图输入及上传压缩方式；2.1 响应取最后一张图作为终稿。
+- 原生运行和内置“立即生成”都支持 2.1。更新后重启 ComfyUI 并刷新页面。
+
 ## 内置“立即生成”与跨批次并发
 
 无需安装额外并发插件。点击节点内 **▶ 立即生成**，上一批运行时仍可继续提交；

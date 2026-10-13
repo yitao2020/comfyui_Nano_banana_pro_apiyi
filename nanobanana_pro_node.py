@@ -17,14 +17,16 @@ class NanoBananaProImageGenerator:
     # 支持的模型版本
     MODEL_VERSIONS = [
         "gemini-3-pro-image-preview",      # Gemini 3 Pro (Nano Banana Pro)
-        "gemini-3.1-flash-image-preview"   # Gemini 3.1 Flash (Nano Banana 2)
+        "gemini-3.1-flash-image-preview",  # Gemini 3.1 Flash (Nano Banana 2)
+        "gemini-nano-banana-2.1"          # Nano Banana 2.1
     ]
 
-    # Thinking 级别（仅 3.1 Flash 支持）
+    # 保留旧工作流选项；2.1 的 disabled 使用服务端默认 medium，low 映射 minimal。
     THINKING_LEVELS = ["disabled", "minimal", "low", "medium", "high"]
 
     # 支持的宽高比
     ASPECT_RATIOS = ["auto", "1:1", "16:9", "9:16", "4:3", "3:4", "3:2", "2:3", "21:9", "5:4", "4:5"]
+    EXTRA_21_RATIOS = ["1:4", "4:1", "1:8", "8:1"]
 
     # 支持的分辨率
     RESOLUTIONS = ["1K", "2K", "4K"]
@@ -44,13 +46,13 @@ class NanoBananaProImageGenerator:
                 "model_version": (cls.MODEL_VERSIONS, {"default": "gemini-3-pro-image-preview"}),
                 "thinking_level": (cls.THINKING_LEVELS, {
                     "default": "disabled",
-                    "tooltip": "思考级别（仅3.1-flash支持）: disabled=关闭 | minimal=最快 | low=常规 | medium=中等 | high=深度推理"
+                    "tooltip": "3.1-flash 沿用原设置；2.1 支持 minimal/medium/high，disabled=不传参数（默认 medium，并非关闭思考），low 兼容映射为 minimal。Pro 忽略此参数。"
                 }),
                 "prompt": ("STRING", {
                     "multiline": True,
                     "default": "一只可爱的小猫坐在花园里，油画风格，高清，细节丰富"
                 }),
-                "aspect_ratio": (cls.ASPECT_RATIOS, {"default": "auto"}),
+                "aspect_ratio": (cls.ASPECT_RATIOS + cls.EXTRA_21_RATIOS, {"default": "auto", "tooltip": "1:4、4:1、1:8、8:1 仅用于 2.1；auto 根据参考图选择比例，无参考图使用 1:1。"}),
                 "resolution": (cls.RESOLUTIONS, {"default": "2K"}),
                 "estimated_time": ("STRING", {
                     "default": "⏱️ 预计时间: 2K约20-60秒 | 1K约10-30秒 | 4K约30-90秒",
@@ -268,12 +270,27 @@ class NanoBananaProImageGenerator:
             # 构建完整的API URL（根据选择的模型版本）
             api_url = f"{self.api_base_url}{model_version}:generateContent"
             L(f"使用模型: {model_version}")
+            is_21 = model_version == "gemini-nano-banana-2.1"
+            if is_21:
+                if resolution not in self.RESOLUTIONS:
+                    return None, logs, "Nano Banana 2.1 仅支持 1K / 2K / 4K"
+                if aspect_ratio not in self.ASPECT_RATIOS + self.EXTRA_21_RATIOS:
+                    return None, logs, "Nano Banana 2.1 不支持该宽高比"
+                if thinking_level == "low":
+                    thinking_level = "minimal"
+                    L("2.1 不支持 low，兼容映射为 minimal")
+                if thinking_level not in ("disabled", "minimal", "medium", "high"):
+                    return None, logs, "Nano Banana 2.1 思考级别仅支持 minimal / medium / high"
+                if thinking_level == "disabled":
+                    L("2.1 未指定思考级别，使用服务端默认 medium（并非关闭思考）")
+            elif aspect_ratio in self.EXTRA_21_RATIOS:
+                return None, logs, "该宽高比仅支持 Nano Banana 2.1，请选择 2.1 或原有比例"
 
             # 检查 thinking_level 是否适用于当前模型
-            if thinking_level != "disabled" and "3.1-flash" not in model_version:
+            if thinking_level != "disabled" and "3.1-flash" not in model_version and not is_21:
                 L(f"警告: thinking_level='{thinking_level}' 仅支持 gemini-3.1-flash-image-preview 模型")
                 L(f"当前模型 '{model_version}' 不支持 thinking 配置，将忽略此参数")
-            elif thinking_level != "disabled" and "3.1-flash" in model_version:
+            elif thinking_level != "disabled" and ("3.1-flash" in model_version or is_21):
                 L(f"启用 Thinking 模式: {thinking_level} (深度推理)")
 
             L(f"提示词: {prompt[:100]}..." if len(prompt) > 100 else f"提示词: {prompt}")
@@ -285,6 +302,10 @@ class NanoBananaProImageGenerator:
                     # 从输入图像获取尺寸
                     img_height, img_width = image.shape[1], image.shape[2]
                     final_aspect_ratio = self.calculate_aspect_ratio(img_width, img_height)
+                    if is_21:
+                        ratios = self.ASPECT_RATIOS[1:] + self.EXTRA_21_RATIOS
+                        final_aspect_ratio = min(ratios, key=lambda r: abs(
+                            img_width / max(img_height, 1) - int(r.split(':')[0]) / int(r.split(':')[1])))
                     L(f"Auto 模式: 根据输入图像自动选择宽高比 {final_aspect_ratio}")
                 else:
                     # 没有输入图像时，默认使用 1:1
@@ -340,6 +361,11 @@ class NanoBananaProImageGenerator:
 
                 L(f"✅ 成功添加 {batch_size} 张图像到请求中（已设置权重优先级）")
 
+            if is_21:
+                # Keep reference guidance in one text part, followed by image-only parts.
+                parts = [{"text": "\n".join(p["text"] for p in parts if "text" in p)}] + [
+                    p for p in parts if "inlineData" in p]
+
             # 构建请求payload
             payload = {
                 "contents": [{
@@ -355,7 +381,7 @@ class NanoBananaProImageGenerator:
             }
 
             # 如果使用 3.1-flash 模型且启用了 thinking，添加 thinkingConfig
-            if "3.1-flash" in model_version and thinking_level != "disabled":
+            if ("3.1-flash" in model_version or is_21) and thinking_level != "disabled":
                 payload["generationConfig"]["thinkingConfig"] = {
                     "thinkingLevel": thinking_level,
                     "includeThoughts": False  # 不返回思维过程文本，只影响生成质量
@@ -369,7 +395,7 @@ class NanoBananaProImageGenerator:
             }
 
             # 获取超时时间
-            timeout = self.TIMEOUT_MAP.get(resolution, 300)
+            timeout = 360 if is_21 else self.TIMEOUT_MAP.get(resolution, 300)
 
             # 根据分辨率显示预计时间
             estimated_times = {
@@ -450,6 +476,11 @@ class NanoBananaProImageGenerator:
 
                 if "content" in candidate and "parts" in candidate["content"]:
                     parts_resp = candidate["content"]["parts"]
+                    if is_21:
+                        # 2.1 may return drafts before the final image, interspersed with text.
+                        parts_resp = [p for p in (parts_resp or []) if isinstance(p, dict)
+                                      and isinstance(p.get("inlineData"), dict)
+                                      and p["inlineData"].get("data")][-1:]
                     for part in parts_resp:
                         if "inlineData" in part and "data" in part["inlineData"]:
                             img_base64 = part["inlineData"]["data"]
